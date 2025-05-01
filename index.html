@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Budgeting Guide</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        html, body { height: 100%; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1f2937; }
+
+        /* Sidebar Styling */
+        #sidebar {
+            transition: width 0.3s ease-in-out; width: 16rem;
+            background-color: #f1f5f9; border-right: 1px solid #e2e8f0;
+            position: fixed; left: 0; top: 0; height: 100vh; z-index: 40;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        #sidebar.collapsed { width: 4.5rem; }
+        #sidebar.collapsed .sidebar-text { display: none; }
+        #sidebar.collapsed .sidebar-icon { margin-left: 0.125rem; margin-right: 0; }
+        #sidebar.collapsed #sidebar-toggle-button .sidebar-text { display: none; }
+        #sidebar.collapsed #sidebar-toggle-button svg.toggle-arrow { transform: rotate(180deg); }
+
+        /* Main content margin adjustment */
+        #main-content { transition: margin-left 0.3s ease-in-out; padding-top: 1rem; padding-bottom: 2rem; }
+        .ml-expanded { margin-left: 16rem; }
+        .ml-collapsed { margin-left: 4.5rem; }
+
+         /* Container within main content */
+         .guide-container { width: 100%; max-width: 900px; margin: 0 auto; padding: 1.5rem; background-color: #ffffff; border-radius: 15px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05); }
+        /* General Section Styling */
+        .section { padding: 1.5rem; margin-bottom: 1.5rem; background-color: #fdfdff; border-radius: 10px; border: 1px solid #e5e7eb; }
+        /* Buttons */
+        .btn { font-family: 'Inter', sans-serif; font-weight: 600; background-color: #3b82f6; color: #ffffff; padding: 0.75rem 1.5rem; border: none; border-radius: 8px; cursor: pointer; transition: background-color 0.3s ease; margin-top: 0.5rem; margin-right: 0.5rem; display: inline-block; text-align: center; }
+        .btn:hover { background-color: #2563eb; }
+        .btn-secondary { background-color: #6b7280; } .btn-secondary:hover { background-color: #4b5563; }
+        .btn-danger { background-color: #ef4444; } .btn-danger:hover { background-color: #dc2626; }
+        .btn-disabled { background-color: #d1d5db; cursor: not-allowed; opacity: 0.7; }
+        .btn-small { padding: 0.4rem 0.8rem; font-size: 0.8rem; }
+        .btn-success { background-color: #10b981; } .btn-success:hover { background-color: #059669;}
+
+        /* Other UI Elements */
+        .message-box { background-color: #eff6ff; color: #1e40af; padding: 1rem; margin-top: 1rem; border-radius: 8px; border-left: 4px solid #60a5fa; font-size: 0.95rem; line-height: 1.5; }
+        .hidden { display: none; }
+        label { display: block; margin-bottom: 0.25rem; font-weight: 600; font-size: 0.9rem; color: #374151; }
+        input[type="number"], input[type="text"], select, textarea { font-family: 'Inter', sans-serif; width: 100%; padding: 0.75rem 0.8rem; margin-bottom: 0.5rem; border-radius: 6px; border: 1px solid #d1d5db; background-color: #ffffff; color: #1f2937; box-sizing: border-box; transition: border-color 0.2s ease, box-shadow 0.2s ease; font-size: 1rem; }
+        input[type="number"]:focus, input[type="text"]:focus, select:focus, textarea:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); outline: none; }
+        .category-description { font-size: 0.8rem; color: #6b7280; margin-top: -0.25rem; margin-bottom: 1rem; line-height: 1.3; }
+
+        .allocation-group, .question-block { background-color: #ffffff; padding: 1.5rem; border-radius: 8px; margin-bottom: 1rem; border: 1px solid #e5e7eb; }
+        .question-block label.question-title { margin-bottom: 1rem; font-weight: bold; color: #111827; font-size: 1rem; }
+        .question-block div.option { margin-bottom: 0.75rem; display: flex; align-items: flex-start; }
+        .question-block input[type="radio"], .question-block input[type="checkbox"] { margin-right: 0.75rem; margin-top: 0.2rem; transform: scale(1.1); accent-color: #3b82f6; flex-shrink: 0; cursor: pointer; }
+        .question-block span.option-text { font-size: 0.9rem; color: #374151; line-height: 1.4; cursor: pointer; }
+        h1, h2, h3 { color: #111827; font-weight: 700; line-height: 1.3; }
+        h1 { font-size: 1.75rem; margin-bottom: 1rem; text-align: center; }
+        h2 { font-size: 1.4rem; margin-bottom: 1rem; border-bottom: 2px solid #e5e7eb; padding-bottom: 0.5rem;}
+        h3 { font-size: 1.15rem; margin-bottom: 0.8rem; font-weight: 600; }
+        h4 { font-size: 1.05rem; margin-top: 1rem; margin-bottom: 0.5rem; font-weight: 600; color: #1e3a8a; }
+
+        /* Sidebar link styling */
+        .sidebar-link { display: flex; align-items: center; padding: 0.75rem 1rem; margin: 0.1rem 0.5rem; border-radius: 6px; color: #4b5563; text-decoration: none; transition: background-color 0.2s ease, color 0.2s ease; white-space: nowrap; overflow: hidden; }
+        .sidebar-link:hover { background-color: #e5e7eb; color: #1f2937; }
+        .sidebar-link.active { background-color: #dbeafe; color: #2563eb; font-weight: 600; }
+        .sidebar-link.disabled { color: #9ca3af; cursor: not-allowed; pointer-events: none; opacity: 0.6; }
+        .sidebar-icon { flex-shrink: 0; width: 1.25rem; height: 1.25rem; margin-right: 0.75rem; transition: margin 0.3s ease-in-out; }
+        #sidebar-toggle-button { color: #4b5563; cursor: pointer; opacity: 1 !important; pointer-events: auto !important; }
+        #sidebar-toggle-button:hover { background-color: #e5e7eb; color: #1f2937; }
+
+        /* Budget List Styling */
+        .budget-list-item { display: flex; justify-content: space-between; align-items: center; padding: 0.75rem 1rem; border: 1px solid #e5e7eb; border-radius: 8px; margin-bottom: 0.75rem; background-color: #fff; }
+        .budget-list-item span { font-weight: 500; color: #374151; }
+        .budget-list-actions button { margin-left: 0.5rem; }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+             #main-content { margin-left: 4.5rem; width: calc(100% - 4.5rem); padding-top: 0.5rem; }
+             .guide-container { margin: 0.5rem; padding: 1rem; }
+             .btn { width: 100%; margin-right: 0; margin-bottom: 0.75rem; padding: 0.8rem 1rem; }
+             h1 { font-size: 1.5rem; } h2 { font-size: 1.25rem; } h3 { font-size: 1.1rem; }
+             label { font-size: 0.85rem; } .question-block span.option-text { font-size: 0.85rem; }
+             input[type="number"], input[type="text"], select, textarea { font-size: 0.95rem; padding: 0.7rem 0.8rem; }
+             .grid.md\:grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+             .budget-list-item { flex-direction: column; align-items: stretch; }
+             .budget-list-actions { margin-top: 0.5rem; display: flex; justify-content: space-between; }
+             .budget-list-actions button { margin-left: 0; flex-grow: 1; margin: 0 0.25rem;}
+             .section, .allocation-group, .question-block { padding: 1rem; }
+        }
+         @media (max-width: 480px) {
+             h1 { font-size: 1.3rem; } h2 { font-size: 1.1rem; }
+             .btn { padding: 0.7rem 1rem; } .message-box { font-size: 0.9rem; }
+             .category-description { font-size: 0.75rem; }
+         }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <div x-data="{ sidebarCollapsed: $persist(true) }" class="relative min-h-screen">
+        <nav id="sidebar"
+             class="fixed left-0 top-0 h-full flex flex-col bg-slate-100 border-r border-slate-200 z-40"
+             :class="{ 'collapsed': sidebarCollapsed }">
+            <div class="p-4 pt-5 mb-4 flex items-center flex-shrink-0" :class="{'justify-center': sidebarCollapsed}">
+                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="sidebar-icon w-6 h-6 text-blue-600 flex-shrink-0" :class="{'mr-0': sidebarCollapsed}"> <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a2.25 2.25 0 0 0-2.25-2.25H15a3 3 0 1 1-6 0H5.25A2.25 2.25 0 0 0 3 12m18 0v6a2.25 2.25 0 0 1-2.25 2.25H5.25A2.25 2.25 0 0 1 3 18v-6m18 0-2.25-4.5M3 12l2.25-4.5m13.5 4.5a4.5 4.5 0 1 1-9 0m9 0a4.5 4.5 0 1 0-9 0" /> </svg>
+                 <span class="font-semibold text-lg text-slate-700 sidebar-text" x-show="!sidebarCollapsed">Budget Guide</span>
+            </div>
+            <ul class="flex-grow overflow-y-auto px-2">
+                 <li><a href="#" id="nav-budgetList" class="sidebar-link active" onclick="handleNavClick('budgetList', this)"> <svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0ZM3.75 12h.007v.008H3.75V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Zm-.375 5.25h.007v.008H3.75v-.008Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" /></svg> <span class="sidebar-text">View Budgets</span></a></li>
+                 <li><a href="#" id="nav-intro" class="sidebar-link disabled" onclick="handleNavClick('intro', this)"><svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6a2.25 2.25 0 0 0-2.25 2.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3 0 3-3m0 0-3-3m3 3H9" /></svg><span class="sidebar-text">Intro & Income</span></a></li>
+                 <li><a href="#" id="nav-questionnaire" class="sidebar-link disabled" onclick="handleNavClick('questionnaire', this)"><svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 5.25h.008v.008H12v-.008Z" /></svg><span class="sidebar-text">Questionnaire</span></a></li>
+                 <li><a href="#" id="nav-recommendation" class="sidebar-link disabled" onclick="handleNavClick('recommendation', this)"><svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg><span class="sidebar-text">Recommendation</span></a></li>
+                 <li><a href="#" id="nav-methods" class="sidebar-link disabled" onclick="handleNavClick('methods', this)"><svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg><span class="sidebar-text">Methods Explained</span></a></li>
+                 <li><a href="#" id="nav-builder" class="sidebar-link disabled" onclick="handleNavClick('builder', this)"><svg class="sidebar-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" /></svg><span class="sidebar-text">Budget Builder</span></a></li>
+            </ul>
+            <div class="p-2 border-t border-slate-200 flex-shrink-0">
+                 <button id="sidebar-toggle-button" @click="sidebarCollapsed = !sidebarCollapsed" title="Toggle Sidebar" class="sidebar-link w-full justify-start"> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="sidebar-icon toggle-arrow transition-transform duration-300 flex-shrink-0"> <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" /> </svg> <span class="sidebar-text" x-show="!sidebarCollapsed">Collapse</span> <span class="sidebar-text" x-show="sidebarCollapsed">Expand</span> </button>
+             </div>
+        </nav>
+
+        <main id="main-content" class="flex-1 bg-slate-50"
+              :class="sidebarCollapsed ? 'ml-collapsed' : 'ml-expanded'">
+            <div class="guide-container">
+                 <div id="budgetList-section" class="section">
+                     <div class="flex justify-between items-center mb-4 flex-wrap gap-2"> <h2>Saved Budgets</h2>
+                         <button id="create-new-budget-btn" class="btn btn-success flex-shrink-0"> <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5 inline-block mr-1 -ml-1"> <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" /> </svg>
+                             Create New Budget
+                         </button>
+                     </div>
+                     <p class="mb-4 text-gray-700">Manage your saved budget plans below, or create a new one.</p>
+                     <div id="saved-budgets-list" class="space-y-3">
+                         <p class="text-gray-500">Loading budgets...</p>
+                     </div>
+                     <div id="budget-list-feedback" class="message-box hidden mt-4"></div>
+                     <button id="clear-all-budgets-btn" class="btn btn-danger btn-small mt-6">Clear All Saved Budgets</button>
+                 </div>
+
+                <div id="intro-section" class="section hidden">
+                    <h2>Start New Budget: Income</h2>
+                    <p class="mb-4 text-gray-700 leading-relaxed">Let's begin creating a new budget plan. First, enter your estimated monthly take-home income (after taxes).</p>
+                    <label for="income-input">Your Monthly Net Income ($):</label>
+                    <input type="number" id="income-input" placeholder="e.g., 3000" min="1">
+                    <button id="start-questionnaire-btn" class="btn">Next: Questionnaire</button>
+                    <div id="intro-warning" class="message-box hidden mt-2"></div>
+                </div>
+
+                <div id="questionnaire-section" class="section hidden">
+                    <h2>Step 1: Understand Your Style</h2>
+                    <p class="mb-4 text-gray-700">Answer these questions to help us suggest a budgeting approach.</p>
+                    <form id="guidance-form">
+                        <div class="question-block">
+                            <label class="question-title">1. How detailed do you like to be with tracking your spending?</label>
+                            <div class="option"><input type="radio" name="q1_tracking" value="detail" id="q1_detail" required> <label for="q1_detail" class="w-full"><span class="option-text">Very detailed. I want to know exactly where every dollar goes and categorize everything meticulously.</span></label></div>
+                            <div class="option"><input type="radio" name="q1_tracking" value="big_picture" id="q1_big_picture"> <label for="q1_big_picture" class="w-full"><span class="option-text">Somewhat detailed. I want a general overview of spending categories but don't need to track every single penny.</span></label></div>
+                            <div class="option"><input type="radio" name="q1_tracking" value="simple" id="q1_simple"> <label for="q1_simple" class="w-full"><span class="option-text">Not very detailed. I prefer a simple approach that requires minimal tracking and focuses on major goals like saving.</span></label></div>
+                        </div>
+                        <div class="question-block">
+                            <label class="question-title">2. What are your main financial goals right now? (Check all that apply)</label>
+                            <div class="option"><input type="checkbox" name="q2_goal" value="debt" id="q2_debt"> <label for="q2_debt" class="w-full"><span class="option-text">Aggressively pay down high-interest debt (like credit cards or personal loans).</span></label></div>
+                            <div class="option"><input type="checkbox" name="q2_goal" value="save" id="q2_save"> <label for="q2_save" class="w-full"><span class="option-text">Consistently saving and investing for the future (e.g., retirement, down payment, emergency fund).</span></label></div>
+                            <div class="option"><input type="checkbox" name="q2_goal" value="control" id="q2_control"> <label for="q2_control" class="w-full"><span class="option-text">Getting a better handle on my day-to-day spending and stopping impulse purchases or overspending in certain areas.</span></label></div>
+                            <div class="option"><input type="checkbox" name="q2_goal" value="values" id="q2_values"> <label for="q2_values" class="w-full"><span class="option-text">Making sure my spending aligns with what's truly important to me (e.g., experiences, family, hobbies).</span></label></div>
+                            <div class="option"><input type="checkbox" name="q2_goal" value="basic" id="q2_basic"> <label for="q2_basic" class="w-full"><span class="option-text">Mainly just ensuring all essential bills are paid, with maybe a little left over for savings if possible.</span></label></div>
+                        </div>
+                        <div class="question-block">
+                            <label class="question-title">3. How much time are you realistically willing to spend on budgeting each month?</label>
+                            <div class="option"><input type="radio" name="q3_time" value="high" id="q3_high" required> <label for="q3_high" class="w-full"><span class="option-text">Significant time. I'm willing to dedicate several hours per month to detailed planning and tracking if needed.</span></label></div>
+                            <div class="option"><input type="radio" name="q3_time" value="medium" id="q3_medium"> <label for="q3_medium" class="w-full"><span class="option-text">A moderate amount. Maybe 1-2 hours for setup and occasional check-ins throughout the month.</span></label></div>
+                            <div class="option"><input type="radio" name="q3_time" value="low" id="q3_low"> <label for="q3_low" class="w-full"><span class="option-text">Very little time. I need something quick to set up and mostly automated or low-maintenance.</span></label></div>
+                        </div>
+                        <div class="question-block">
+                            <label class="question-title">4. Which best describes your typical approach to spending discretionary money?</label>
+                            <div class="option"><input type="radio" name="q4_style" value="impulsive" id="q4_impulsive" required> <label for="q4_impulsive" class="w-full"><span class="option-text">I often spend impulsively or struggle to stick to limits in fun categories.</span></label></div>
+                            <div class="option"><input type="radio" name="q4_style" value="enjoy" id="q4_enjoy"> <label for="q4_enjoy" class="w-full"><span class="option-text">I want the freedom to spend on things I enjoy without feeling guilty, as long as basics are covered.</span></label></div>
+                             <div class="option"><input type="radio" name="q4_style" value="careful" id="q4_careful"> <label for="q4_careful" class="w-full"><span class="option-text">I tend to be naturally frugal or prioritize saving most of what's left over.</span></label></div>
+                        </div>
+                        <div class="question-block">
+                            <label class="question-title">5. How predictable is your monthly income?</label>
+                            <div class="option"><input type="radio" name="q5_income" value="stable" id="q5_stable" required> <label for="q5_stable" class="w-full"><span class="option-text">Very predictable. I receive roughly the same amount each pay period.</span></label></div>
+                            <div class="option"><input type="radio" name="q5_income" value="fluctuates" id="q5_fluctuates"> <label for="q5_fluctuates" class="w-full"><span class="option-text">It fluctuates somewhat due to commissions, overtime, or side work.</span></label></div>
+                            <div class="option"><input type="radio" name="q5_income" value="irregular" id="q5_irregular"> <label for="q5_irregular" class="w-full"><span class="option-text">Highly irregular. It's difficult to predict (e.g., freelance, seasonal work).</span></label></div>
+                        </div>
+                         <div class="question-block">
+                            <label class="question-title">6. What feel like your biggest challenges with money management? (Check all that apply)</label>
+                            <div class="option"><input type="checkbox" name="q6_challenge" value="overspending" id="q6_overspending"> <label for="q6_overspending" class="w-full"><span class="option-text">Consistently overspending, especially in discretionary areas.</span></label></div>
+                            <div class="option"><input type="checkbox" name="q6_challenge" value="saving" id="q6_saving"> <label for="q6_saving" class="w-full"><span class="option-text">Difficulty saving money consistently or feeling like there's never enough left over.</span></label></div>
+                            <div class="option"><input type="checkbox" name="q6_challenge" value="tracking" id="q6_tracking"> <label for="q6_tracking" class="w-full"><span class="option-text">Not knowing where my money actually goes; feeling like it just disappears.</span></label></div>
+                            <div class="option"><input type="checkbox" name="q6_challenge" value="complexity" id="q6_complexity"> <label for="q6_complexity" class="w-full"><span class="option-text">Feeling overwhelmed by financial jargon or the idea of budgeting itself.</span></label></div>
+                             <div class="option"><input type="checkbox" name="q6_challenge" value="debt_focus" id="q6_debt_focus"> <label for="q6_debt_focus" class="w-full"><span class="option-text">Trying to figure out how to balance paying off debt with other financial goals.</span></label></div>
+                        </div>
+                        <div id="questionnaire-warning" class="message-box hidden mt-2"></div>
+                        <button type="submit" id="submit-questionnaire-btn" class="btn">Get Recommendation</button>
+                    </form>
+                </div>
+                 <div id="recommendation-section" class="section hidden">
+                    <h2>Step 2: Your Recommended Approach</h2>
+                    <div id="recommendation-text" class="message-box"></div>
+                     <p class="mt-4 text-gray-700">You can learn more about different methods or proceed directly to the builder.</p>
+                     <button id="goto-methods-btn" class="btn btn-secondary mt-2">Learn About Methods</button>
+                     <button id="goto-builder-btn" class="btn mt-2">Go to Budget Builder</button>
+                </div>
+                 <div id="methods-section" class="section hidden">
+                     <h2>Budgeting Methods Explained</h2>
+                     <p class="mb-4 text-gray-700">Here's a quick overview. Your recommended approach(es) are highlighted.</p>
+                     <div id="method-details"></div>
+                     <button id="builder-from-methods-btn" class="btn mt-4">Go to Budget Builder</button>
+                </div>
+                <div id="builder-section" class="section hidden">
+                    <h2>Step 3: Build Your Budget</h2>
+                    <p class="mb-4 text-gray-700">Based on your income and chosen method, allocate your funds below. If using a hybrid approach, you can add/remove categories.</p>
+                    <div class="allocation-group">
+                        <label for="builder-method-select">Selected Budgeting Method:</label>
+                        <select id="builder-method-select" class="mb-4">
+                            <option value="none">-- Select a Method --</option>
+                            <option value="503020">50/30/20 Rule</option>
+                            <option value="zbb">Zero-Based Budget (ZBB)</option>
+                            <option value="valueBased">Value-Based Spending</option>
+                            <option value="conscious">Conscious Spending / PYF</option>
+                            <option value="envelope">Envelope System</option>
+                            <option value="hybrid">Hybrid Approach</option>
+                        </select>
+                        <div id="hybrid-type-display" class="text-sm text-gray-600 mb-3 hidden"> Using Hybrid Structure: <strong id="hybrid-structure-name"></strong> </div>
+                        <p class="mb-1 text-gray-800">Your Income: <strong class="text-lg">$<span id="income-display-builder">0.00</span></strong></p>
+                        <p class="mb-4 text-gray-800">Amount Left to Budget: <strong class="text-lg" id="builder-remaining-style">$<span id="builder-remaining">0.00</span></strong></p>
+                        <div id="builder-categories" class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1"> <p class="text-gray-500 md:col-span-2">Select a method above...</p> </div>
+                         <div id="hybrid-add-area" class="hidden mt-6 pt-4 border-t border-gray-300">
+                             <h3 class="text-lg mb-2 font-semibold">Add Custom Category:</h3>
+                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+                                 <div class="sm:col-span-2"><label for="hybrid-cat-name">New Category Name:</label><input type="text" id="hybrid-cat-name" placeholder="e.g., Vacation Fund"></div>
+                                 <div><label for="hybrid-cat-amount">Amount ($):</label><input type="number" id="hybrid-cat-amount" min="0" value="0" placeholder="Amount"></div>
+                             </div>
+                             <button id="add-hybrid-cat-btn" class="btn text-sm py-2 px-3 mt-2">Add Category</button>
+                         </div>
+                    </div>
+                     <div id="builder-feedback" class="message-box hidden mt-4"></div>
+                     <div class="mt-6 pt-4 border-t border-gray-300">
+                         <label for="budget-name-input">Budget Name:</label>
+                         <input type="text" id="budget-name-input" placeholder="e.g., My Monthly Budget" class="mb-2">
+                         <p class="text-xs text-gray-500 mb-4">Enter a name to save this budget plan. If editing, saving will update the existing budget.</p>
+                         <button id="save-budget-btn" class="btn btn-disabled" disabled>Save Budget</button>
+                     </div>
+                </div>
+
+            </div> </main>
+    </div>
+
+    <script>
+        // --- State Management ---
+        const appState = {
+            currentScreen: 'budgetList', income: 0.0, recommendations: [],
+            recommendedHybridStructure: null, builderMethod: 'none', builderAllocations: {},
+            valueNames: { v1: 'Value 1', v2: 'Value 2', v3: 'Value 3' },
+            editingBudgetName: null, feedback: { message: null, type: 'info' },
+            screensCompleted: { intro: false, questionnaire: false, recommendation: false, methods: false, builder: false, budgetList: true }
+        };
+
+        // --- DOM Elements ---
+        // (References remain the same, plus new name input)
+        const sidebar = document.getElementById('sidebar');
+        const mainContent = document.getElementById('main-content');
+        const introSection = document.getElementById('intro-section');
+        const questionnaireSection = document.getElementById('questionnaire-section');
+        const recommendationSection = document.getElementById('recommendation-section');
+        const methodsSection = document.getElementById('methods-section');
+        const builderSection = document.getElementById('builder-section');
+        const budgetListSection = document.getElementById('budgetList-section');
+        const incomeInput = document.getElementById('income-input');
+        const startQuestionnaireBtn = document.getElementById('start-questionnaire-btn');
+        const introWarning = document.getElementById('intro-warning');
+        const guidanceForm = document.getElementById('guidance-form');
+        const submitQuestionnaireBtn = document.getElementById('submit-questionnaire-btn');
+        const questionnaireWarning = document.getElementById('questionnaire-warning');
+        const recommendationText = document.getElementById('recommendation-text');
+        const gotoMethodsBtn = document.getElementById('goto-methods-btn');
+        const gotoBuilderBtn = document.getElementById('goto-builder-btn');
+        const methodDetailsDiv = document.getElementById('method-details');
+        const builderFromMethodsBtn = document.getElementById('builder-from-methods-btn');
+        const builderMethodSelect = document.getElementById('builder-method-select');
+        const hybridTypeDisplay = document.getElementById('hybrid-type-display');
+        const hybridStructureName = document.getElementById('hybrid-structure-name');
+        const incomeDisplayBuilder = document.getElementById('income-display-builder');
+        const builderRemaining = document.getElementById('builder-remaining');
+        const builderRemainingStyle = document.getElementById('builder-remaining-style');
+        const builderCategoriesDiv = document.getElementById('builder-categories');
+        const hybridAddArea = document.getElementById('hybrid-add-area');
+        const addHybridCatBtn = document.getElementById('add-hybrid-cat-btn');
+        const builderFeedback = document.getElementById('builder-feedback');
+        const budgetNameInput = document.getElementById('budget-name-input'); // New
+        const saveBudgetBtn = document.getElementById('save-budget-btn');
+        const savedBudgetsListDiv = document.getElementById('saved-budgets-list');
+        const budgetListFeedback = document.getElementById('budget-list-feedback');
+        const clearAllBudgetsBtn = document.getElementById('clear-all-budgets-btn');
+        const createNewBudgetBtn = document.getElementById('create-new-budget-btn');
+
+
+        // --- Category Descriptions ---
+        const categoryDescriptions = { /* ... same descriptions ... */ needs: "Essentials: Rent/mortgage, utilities, required debt payments, insurance, essential groceries, basic transport.", wants: "Non-essentials: Dining out, hobbies, subscriptions, entertainment, travel, non-essential shopping.", savings: "Future goals: Emergency fund, retirement contributions, extra debt payments, down payment savings.", housing: "Rent or mortgage payment.", transport: "Car payment, gas, public transit, basic maintenance, ride-sharing.", food: "Groceries and essential household supplies.", utilities: "Electricity, water, gas, internet, phone.", insurance: "Health, auto, home/renters insurance premiums.", debt: "Minimum payments + any extra planned debt payments.", savings_goals: "Specific savings goals: Emergency fund, vacation, down payment, etc.", investing: "Retirement accounts (IRA, 401k beyond match), brokerage accounts.", personal: "Discretionary/Fun: Hobbies, entertainment, dining out, personal care.", misc: "Buffer for unexpected small expenses or unlisted items.", value1: "Spending related to your first core value.", value2: "Spending related to your second core value.", value3: "Spending related to your third core value.", essentials: "Core needs like housing, basic food, essential utilities.", savings_debt: "Savings goals and debt payments beyond minimums.", nonvalued: "Spending you plan to minimize or cut.", fixed: "Recurring essentials: Rent/mortgage, utilities, insurance, minimum debt payments, necessary subscriptions.", investments: "Long-term wealth building: Retirement accounts (IRA, 401k).", guiltfree: "Enjoyment money: Dining out, hobbies, travel, shopping - spend without guilt!", env_groceries: "Limit for grocery store purchases.", env_dining: "Limit for restaurants, cafes, takeout.", env_fun: "Limit for movies, concerts, events, hobbies.", env_transport: "Limit for gas fill-ups or public transit fares.", env_personal: "Limit for personal care items, haircuts, non-essential clothing.", env_misc: "Limit for small cash purchases or buffer.", fixed_bills: "Non-envelope fixed costs: Rent/mortgage, utilities, insurance, loan payments.", savings_debt_non_env: "Savings goals and debt payments handled outside envelopes.", 'hybrid_essentials': "Core needs like housing, basic food, essential utilities.", 'hybrid_savings': "Savings goals and debt payments beyond minimums.", 'needs_lump': "All essential needs combined (aim for ~50% of income).", 'savings_lump': "All savings & extra debt payments combined (aim for ~20% of income).", 'zbb_wants_dining': "Specific amount planned for dining out this month.", 'zbb_wants_hobbies': "Specific amount planned for hobbies/recreation.", 'zbb_wants_subs': "Specific amount planned for non-essential subscriptions.", 'zbb_wants_shopping': "Specific amount planned for non-essential shopping.", 'zbb_wants_other': "Want: Other/Misc", 'env_dining_social': "Spending limit for eating out, coffee, social events.", 'env_hobbies_fun': "Spending limit for hobbies, entertainment, recreation.", 'env_shopping_personal': "Spending limit for non-essential shopping, personal items." };
+
+        // --- Utility Functions ---
+        // (Remain the same)
+        const formatCurrency = (amount) => { const num = Number(amount); return isNaN(num) ? '0.00' : num.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,'); };
+        const showElement = (el) => el?.classList.remove('hidden');
+        const hideElement = (el) => el?.classList.add('hidden');
+        const enableButton = (btn) => { if(btn) { btn.disabled = false; btn.classList.remove('btn-disabled'); } };
+        const disableButton = (btn) => { if(btn) { btn.disabled = true; btn.classList.add('btn-disabled'); } };
+        const setFeedback = (el, message, type = 'info') => { if (!el) return; el.textContent = message; el.className = 'message-box mt-2'; let colors = 'bg-eff6ff border-blue-300 text-blue-800'; if (type === 'success') colors = 'bg-green-100 border-green-500 text-green-800'; else if (type === 'warning') colors = 'bg-yellow-100 border-yellow-500 text-yellow-800'; else if (type === 'error') colors = 'bg-red-100 border-red-500 text-red-800'; el.classList.add(...colors.split(' ')); showElement(el); };
+        const updateRemainingDisplay = (spanElement, styleElement, remainingAmount) => { if (!spanElement || !styleElement) return; spanElement.textContent = formatCurrency(remainingAmount); styleElement.classList.remove('text-red-600', 'text-green-600', 'text-gray-800'); if (Math.abs(remainingAmount) < 0.01) styleElement.classList.add('text-green-600'); else if (remainingAmount < 0) styleElement.classList.add('text-red-600'); else styleElement.classList.add('text-gray-800'); };
+
+
+        // --- LocalStorage Persistence ---
+        const STORAGE_KEY = 'savedBudgets_v1';
+        function loadBudgets() { const budgetsJson = localStorage.getItem(STORAGE_KEY); try { return budgetsJson ? JSON.parse(budgetsJson) : []; } catch (e) { console.error("Error parsing saved budgets:", e); return []; } }
+        function saveBudgets(budgets) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(budgets)); } catch (e) { console.error("Error saving budgets:", e); setFeedback(budgetListFeedback || builderFeedback, "Error: Could not save budgets. Storage might be full.", "error"); } }
+        function saveOrUpdateBudget(name, budgetData) { const budgets = loadBudgets(); const existingIndex = budgets.findIndex(b => b.name.toLowerCase() === name.toLowerCase()); if (existingIndex > -1) { budgets[existingIndex] = { ...budgetData, name: budgets[existingIndex].name }; saveBudgets(budgets); return true; } else { budgets.push({ ...budgetData, name: name }); saveBudgets(budgets); return false; } }
+        function deleteBudget(nameToDelete) { let budgets = loadBudgets(); budgets = budgets.filter(b => b.name.toLowerCase() !== nameToDelete.toLowerCase()); saveBudgets(budgets); renderBudgetList(); setFeedback(budgetListFeedback, `Budget "${nameToDelete}" deleted.`, "success"); setTimeout(() => hideElement(budgetListFeedback), 3000); }
+        function getBudgetByName(nameToLoad) { const budgets = loadBudgets(); return budgets.find(b => b.name.toLowerCase() === nameToLoad.toLowerCase()); }
+
+        // --- Navigation & Sidebar ---
+        function updateSidebarNav() { /* ... same logic ... */ document.querySelectorAll('.sidebar-link').forEach(link => { if (link.id === 'sidebar-toggle-button') return; const screenId = link.id.replace('nav-', ''); let disabled = true; if (screenId === 'budgetList') disabled = false; else if (screenId === 'intro' && appState.currentScreen !== 'budgetList') disabled = false; else if (screenId === 'questionnaire' && appState.screensCompleted.intro) disabled = false; else if (screenId === 'recommendation' && appState.screensCompleted.questionnaire) disabled = false; else if (screenId === 'methods' && appState.screensCompleted.recommendation) disabled = false; else if (screenId === 'builder' && appState.screensCompleted.recommendation) disabled = false; link.classList.toggle('disabled', disabled); link.classList.toggle('active', screenId === appState.currentScreen); }); }
+        function navigateTo(screenId) { /* ... same logic ... */ console.log("Navigating to:", screenId); appState.currentScreen = screenId; if (screenId !== 'budgetList') appState.screensCompleted[screenId] = true; [introSection, questionnaireSection, recommendationSection, methodsSection, builderSection, budgetListSection].forEach(hideElement); const targetSection = document.getElementById(`${screenId}-section`); showElement(targetSection); updateSidebarNav(); if (screenId === 'budgetList') renderBudgetList(); if (screenId !== 'builder') appState.editingBudgetName = null; mainContent.scrollTo({ top: 0, behavior: 'smooth' }); }
+        function handleNavClick(screenId, clickedLinkElement) { /* ... same logic ... */ if (clickedLinkElement.classList.contains('disabled')) return; navigateTo(screenId); }
+
+        // --- Questionnaire & Recommendation Logic ---
+        function calculateBudgetRecommendation(answers) { /* ... same logic ... */
+            let scores = { '503020': 0, 'zbb': 0, 'valueBased': 0, 'conscious': 0, 'envelope': 0, 'pyf': 0 }; let hybridFlags = { needsControl: false, wantsAutomation: false, valuesImportant: false }; let specificHybrid = null;
+            if (answers.q1_tracking === 'detail') { scores.zbb += 2; scores.envelope += 1; } if (answers.q1_tracking === 'big_picture') { scores.conscious += 1; scores.valueBased += 1; scores.pyf += 1; scores['503020'] += 1; } if (answers.q1_tracking === 'simple') { scores['503020'] += 2; scores.pyf += 2; scores.conscious += 1; }
+            answers.q2_goals.forEach(goal => { if (goal === 'debt') { scores.zbb += 2; scores.envelope += 1; hybridFlags.needsControl = true; } if (goal === 'save') { scores.pyf += 2; scores.conscious += 2; scores.zbb += 1; hybridFlags.wantsAutomation = true; } if (goal === 'control') { scores.envelope += 2; scores.zbb += 1; hybridFlags.needsControl = true; } if (goal === 'values') { scores.valueBased += 2; scores.conscious += 1; hybridFlags.valuesImportant = true; } if (goal === 'basic') { scores['503020'] += 1; scores.pyf += 1; } });
+            if (answers.q3_time === 'high') { scores.zbb += 2; scores.valueBased += 1; } if (answers.q3_time === 'medium') { scores.envelope += 1; scores.conscious += 1; scores['503020'] += 1; } if (answers.q3_time === 'low') { scores.pyf += 2; scores.conscious += 1; scores['503020'] += 1; hybridFlags.wantsAutomation = true; }
+            if (answers.q4_style === 'impulsive') { scores.envelope += 2; scores.zbb += 1; hybridFlags.needsControl = true; } if (answers.q4_style === 'enjoy') { scores.conscious += 2; scores.valueBased += 1; } if (answers.q4_style === 'careful') { scores.pyf += 1; scores['503020'] += 1; }
+            if (answers.q5_income === 'stable') { scores.zbb += 1; } if (answers.q5_income === 'fluctuates') { scores.conscious += 1; scores['503020'] +=1; } if (answers.q5_income === 'irregular') { scores.envelope += 1; }
+            answers.q6_challenges.forEach(challenge => { if (challenge === 'overspending') { scores.envelope += 2; scores.zbb += 1; hybridFlags.needsControl = true; } if (challenge === 'saving') { scores.pyf += 2; scores.conscious += 1; hybridFlags.wantsAutomation = true; } if (challenge === 'tracking') { scores.conscious += 1; scores.pyf += 1; scores['503020'] += 1; } if (challenge === 'complexity') { scores['503020'] += 2; scores.pyf += 1; } if (challenge === 'debt_focus') { scores.zbb += 1; scores.envelope += 1; } });
+            let primaryMethod = '503020'; let maxScore = -1; if (scores.pyf > maxScore || (scores.pyf === maxScore && (answers.q2_goals.includes('save') || answers.q3_time === 'low'))) { maxScore = scores.pyf; primaryMethod = 'pyf'; } for (const method in scores) { if (method === 'pyf') continue; if (scores[method] > maxScore) { maxScore = scores[method]; primaryMethod = method; } else if (scores[method] === maxScore) { if (method === 'zbb' && answers.q1_tracking === 'detail') primaryMethod = 'zbb'; if (method === 'conscious' && answers.q4_style === 'enjoy') primaryMethod = 'conscious'; if (method === 'envelope' && answers.q4_style === 'impulsive') primaryMethod = 'envelope'; if (method === 'valueBased' && answers.q2_goals.includes('values')) primaryMethod = 'valueBased'; } } if (primaryMethod === 'pyf') primaryMethod = 'conscious';
+            appState.recommendedHybridStructure = null; let finalRecommendations = [primaryMethod];
+            if ((primaryMethod === 'conscious' || primaryMethod === '503020') && hybridFlags.needsControl && scores.envelope > 1) { finalRecommendations = ['hybrid']; appState.recommendedHybridStructure = 'conscious-envelope'; }
+            else if (primaryMethod === '503020' && hybridFlags.needsControl && scores.zbb > scores.envelope) { finalRecommendations = ['hybrid']; appState.recommendedHybridStructure = '503020-zbb-wants'; }
+            return finalRecommendations;
+        }
+        function displayRecommendation(recommendations) { /* ... same logic ... */
+             appState.recommendations = recommendations; let recHTML = ""; let primaryMethodName = getMethodName(recommendations[0]); if (appState.recommendedHybridStructure) { primaryMethodName = "Hybrid Approach"; let explanation = ""; if (appState.recommendedHybridStructure === 'conscious-envelope') explanation = `This combines the automated savings of <strong>Conscious Spending/PYF</strong> with the spending control of the <strong>Envelope System</strong> for discretionary categories.`; else if (appState.recommendedHybridStructure === '503020-zbb-wants') explanation = `This uses the simple <strong>50/30/20 Rule</strong> for overall structure but applies detailed <strong>Zero-Based Budgeting</strong> specifically to your 'Wants' category.`; recHTML = `Based on your answers, a <strong>${primaryMethodName}</strong> seems like the best fit! ${explanation}`; } else { recHTML = `Based on your answers, the <strong>${primaryMethodName}</strong> seems like a good fit!`; } const incomeStability = document.querySelector('input[name="q5_income"]:checked')?.value; if (incomeStability === 'fluctuates' || incomeStability === 'irregular') { recHTML += `<br><br><strong>Note:</strong> With fluctuating income, remember strategies like budgeting on lowest income or building a buffer.`; } recommendationText.innerHTML = recHTML; navigateTo('recommendation');
+         }
+
+        // --- Method Explanations ---
+        const methodInfo = { /* ... same info ... */ '503020': { name: '50/30/20 Rule', desc: 'Simple percentage-based budgeting: 50% Needs, 30% Wants, 20% Savings/Debt. Easy start, less granular.' }, 'zbb': { name: 'Zero-Based Budget (ZBB)', desc: 'Assign every dollar a job (expense, saving, debt). Income - outflows = zero. Max control, detailed tracking needed.' }, 'valueBased': { name: 'Value-Based Spending', desc: 'Align spending with core values. Fund values generously, cut elsewhere. Requires self-reflection.' }, 'conscious': { name: 'Conscious Spending / PYF', desc: 'Prioritize saving & automation. PYF saves first. Conscious Spending automates, covers fixed costs, allows guilt-free spending on loves.' }, 'envelope': { name: 'Envelope System', desc: 'Uses physical/digital "envelopes" with set cash limits for variable categories (groceries, fun). Stop spending when empty. Great for specific area control.' }, 'hybrid': { name: 'Hybrid Approach', desc: 'Combines elements from different methods for a personalized system. E.g., PYF + Envelopes.' } };
+        function populateMethodDetails() { /* ... same logic ... */ methodDetailsDiv.innerHTML = ''; Object.keys(methodInfo).forEach(key => { const info = methodInfo[key]; const isRecommended = appState.recommendations.includes(key) || (key === 'conscious' && appState.recommendations.includes('pyf')) || (key === 'hybrid' && appState.recommendations.includes('hybrid')); const div = document.createElement('div'); div.className = `p-4 mb-3 border rounded-lg ${isRecommended ? 'bg-blue-50 border-blue-300' : 'bg-white border-gray-200'}`; div.innerHTML = `<h3 class="text-lg font-semibold ${isRecommended ? 'text-blue-800' : 'text-gray-800'}">${info.name} ${isRecommended ? '<span class="text-sm font-normal text-blue-600">(Recommended)</span>' : ''}</h3><p class="text-sm text-gray-600 mt-1">${info.desc}</p>`; methodDetailsDiv.appendChild(div); }); }
+
+        // --- Budget Builder Logic ---
+        function setupBuilderCategories(budgetToLoad = null) { /* ... same logic, includes hybrid add/remove flexibility ... */
+            builderCategoriesDiv.innerHTML = '';
+            const methodToSetup = budgetToLoad ? budgetToLoad.method : builderMethodSelect.value;
+            const allocationsToUse = budgetToLoad ? budgetToLoad.allocations : {};
+            const structureToUse = budgetToLoad ? budgetToLoad.hybridStructure : (methodToSetup === 'hybrid' ? appState.recommendedHybridStructure : null);
+            appState.builderAllocations = { ...allocationsToUse };
+            appState.builderMethod = methodToSetup;
+            builderMethodSelect.value = methodToSetup;
+            disableButton(saveBudgetBtn);
+            hideElement(hybridAddArea); hideElement(hybridTypeDisplay);
+            let categories = [];
+            if (methodToSetup === 'hybrid') {
+                showElement(hybridAddArea); // Always show Add for hybrid
+                if (structureToUse) {
+                    showElement(hybridTypeDisplay); hybridStructureName.textContent = getHybridStructureName(structureToUse);
+                    if (structureToUse === 'conscious-envelope') categories = [ { id: 'fixed', label: 'Fixed Costs' }, { id: 'investments', label: 'Investments (Automated)' }, { id: 'savings_goals', label: 'Savings Goals (Automated)' }, { type: 'heading', label: 'Spending Envelopes:' }, { id: 'env_dining_social', label: 'Envelope: Dining/Social' }, { id: 'env_hobbies_fun', label: 'Envelope: Hobbies/Fun' }, { id: 'env_shopping_personal', label: 'Envelope: Shopping/Personal' } ];
+                    else if (structureToUse === '503020-zbb-wants') categories = [ { id: 'needs_lump', label: 'Needs (~50%)' }, { id: 'savings_lump', label: 'Savings/Debt (~20%)' }, { type: 'heading', label: 'Detailed Wants (~30% Total):' }, { id: 'zbb_wants_dining', label: 'Want: Dining Out' }, { id: 'zbb_wants_hobbies', label: 'Want: Hobbies/Rec' }, { id: 'zbb_wants_subs', label: 'Want: Subscriptions' }, { id: 'zbb_wants_shopping', label: 'Want: Shopping (Non-essential)' }, { id: 'zbb_wants_other', label: 'Want: Other/Misc' } ];
+                    else { categories = [ { id: 'hybrid_essentials', label: 'Essential Needs' }, { id: 'hybrid_savings', label: 'Savings/Debt Goals' } ]; Object.keys(appState.builderAllocations).forEach(key => { if (!categories.some(c => c.id === key)) categories.push({ id: key, label: getCategoryLabel(key, methodToSetup, appState.valueNames) }); }); }
+                } else {
+                     hideElement(hybridTypeDisplay); categories = Object.keys(appState.builderAllocations).map(key => ({ id: key, label: getCategoryLabel(key, methodToSetup, appState.valueNames) })); if (categories.length === 0) categories = [ { id: 'hybrid_essentials', label: 'Essential Needs' }, { id: 'hybrid_savings', label: 'Savings/Debt Goals' } ];
+                }
+            }
+             else if (methodToSetup === '503020') categories = [ { id: 'needs', label: 'Needs' }, { id: 'wants', label: 'Wants' }, { id: 'savings', label: 'Savings/Debt' } ];
+             else if (methodToSetup === 'zbb') categories = [ { id: 'housing', label: 'Housing' }, { id: 'transport', label: 'Transportation' }, { id: 'food', label: 'Food/Groceries' }, { id: 'utilities', label: 'Utilities' }, { id: 'insurance', label: 'Insurance' }, { id: 'debt', label: 'Debt Payments' }, { id: 'savings_goals', label: 'Savings' }, { id: 'investing', label: 'Investing' }, { id: 'personal', label: 'Personal/Fun' }, { id: 'misc', label: 'Miscellaneous/Buffer' } ];
+             else if (methodToSetup === 'valueBased') categories = [ { id: 'value1', label: `Value: ${appState.valueNames.v1}` }, { id: 'value2', label: `Value: ${appState.valueNames.v2}` }, { id: 'value3', label: `Value: ${appState.valueNames.v3}` }, { id: 'essentials', label: 'Essential Needs' }, { id: 'savings_debt', label: 'Other Savings/Debt' }, { id: 'nonvalued', label: 'Non-Valued/Other' } ];
+             else if (methodToSetup === 'conscious') categories = [ { id: 'fixed', label: 'Fixed Costs' }, { id: 'investments', label: 'Investments' }, { id: 'savings', label: 'Savings Goals' }, { id: 'guiltfree', label: 'Guilt-Free Spending' } ];
+             else if (methodToSetup === 'envelope') categories = [ { id: 'env_groceries', label: 'Envelope: Groceries' }, { id: 'env_dining', label: 'Envelope: Dining Out' }, { id: 'env_fun', label: 'Envelope: Entertainment' }, { id: 'env_transport', label: 'Envelope: Transport' }, { id: 'env_personal', label: 'Envelope: Personal Care' }, { id: 'env_misc', label: 'Envelope: Misc/Cash' }, { id: 'fixed_bills', label: 'Fixed Bills (Outside Env)' }, { id: 'savings_debt_non_env', label: 'Savings/Debt (Outside Env)' } ];
+             else { builderCategoriesDiv.innerHTML = `<p class="text-gray-500 md:col-span-2">Select a method above...</p>`; updateBuilderUI(); return; }
+            categories.forEach(cat => { if (cat.type === 'heading') { const heading = document.createElement('h4'); heading.className = 'md:col-span-2'; heading.textContent = cat.label; builderCategoriesDiv.appendChild(heading); } else { addBuilderCategoryInput(cat.id, cat.label, appState.builderAllocations[cat.id] || 0); } });
+            attachBuilderInputListeners(); updateBuilderUI();
+        }
+        function addBuilderCategoryInput(id, label, amount = 0) { /* ... same logic, adds description ... */
+            const inputId = `builder-input-${id}`; const divId = `builder-cat-div-${id}`; if (document.getElementById(divId)) return; const div = document.createElement('div'); div.className = 'allocation-item mb-3 relative'; div.id = divId; const showRemoveButton = appState.builderMethod === 'hybrid'; const description = categoryDescriptions[id] || '';
+            div.innerHTML = `<label for="${inputId}" class="text-sm font-medium text-gray-700 block">${label}:</label><input type="number" class="builder-input border border-gray-300 rounded p-2 w-full" id="${inputId}" data-cat-key="${id}" placeholder="0.00" min="0" step="0.01" value="${amount.toFixed(2)}"> ${description ? `<p class="category-description">${description}</p>` : '<p class="category-description">&nbsp;</p>'} ${showRemoveButton ? `<button class="btn-remove-cat absolute top-0 right-0 mt-1 mr-1 text-red-500 hover:text-red-700 text-xs font-bold bg-white p-1 rounded-full leading-none" data-cat-id="${id}" title="Remove">&times;</button>` : ''}`; builderCategoriesDiv.appendChild(div); if (!(id in appState.builderAllocations)) { appState.builderAllocations[id] = amount; }
+        }
+        function attachBuilderInputListeners() { /* ... same logic ... */ document.querySelectorAll('.builder-input').forEach(input => { input.removeEventListener('input', handleBuilderInputChange); input.addEventListener('input', handleBuilderInputChange); }); document.querySelectorAll('.btn-remove-cat').forEach(button => { button.removeEventListener('click', handleRemoveHybridCategory); button.addEventListener('click', handleRemoveHybridCategory); }); }
+        function handleBuilderInputChange(event) { /* ... same logic ... */ const input = event.target; const key = input.dataset.catKey; const value = parseFloat(input.value) || 0; appState.builderAllocations[key] = value; updateBuilderUI(); }
+        function handleAddHybridCategory() { /* ... same logic ... */ const nameInput = document.getElementById('hybrid-cat-name'); const amountInput = document.getElementById('hybrid-cat-amount'); const name = nameInput.value.trim(); const amount = parseFloat(amountInput.value) || 0; if (!name) { setFeedback(builderFeedback, "Please enter a category name.", 'warning'); return; } const newKey = `hybrid_${name.toLowerCase().replace(/\s+/g, '-')}_${Date.now()}`; if (newKey in appState.builderAllocations) { setFeedback(builderFeedback, "Category already exists.", 'warning'); return; } addBuilderCategoryInput(newKey, name, amount); attachBuilderInputListeners(); updateBuilderUI(); nameInput.value = ''; amountInput.value = '0'; }
+        function handleRemoveHybridCategory(event) { /* ... same logic ... */ const button = event.target; const catIdToRemove = button.dataset.catId; const divToRemove = document.getElementById(`builder-cat-div-${catIdToRemove}`); if (divToRemove) { divToRemove.remove(); delete appState.builderAllocations[catIdToRemove]; updateBuilderUI(); } }
+        function updateBuilderUI() { /* ... same logic ... */ incomeDisplayBuilder.textContent = formatCurrency(appState.income); let totalAllocated = Object.values(appState.builderAllocations).reduce((sum, val) => sum + val, 0); const remaining = appState.income - totalAllocated; updateRemainingDisplay(builderRemaining, builderRemainingStyle, remaining); hideElement(builderFeedback); if (appState.builderMethod === 'none') { disableButton(saveBudgetBtn); } else { const isBalanced = Math.abs(remaining) < 0.01; if (isBalanced) { setFeedback(builderFeedback, "Budget is balanced! Ready to save.", 'success'); enableButton(saveBudgetBtn); } else if (remaining < 0) { setFeedback(builderFeedback, `Over budget by $${formatCurrency(Math.abs(remaining))}!`, 'error'); disableButton(saveBudgetBtn); } else { setFeedback(builderFeedback, `$${formatCurrency(remaining)} left to budget.`, 'warning'); disableButton(saveBudgetBtn); } } }
+
+        // --- Budget List Logic ---
+        function renderBudgetList() { /* ... same logic ... */
+            const budgets = loadBudgets(); savedBudgetsListDiv.innerHTML = '';
+            if (budgets.length === 0) { savedBudgetsListDiv.innerHTML = '<p class="text-gray-500">No budgets saved yet.</p>'; disableButton(clearAllBudgetsBtn); return; }
+            enableButton(clearAllBudgetsBtn);
+            budgets.forEach(budget => { const item = document.createElement('div'); item.className = 'budget-list-item'; item.innerHTML = `<span>${budget.name} (${getMethodName(budget.method)}${budget.hybridStructure ? ' - ' + getHybridStructureName(budget.hybridStructure) : ''})</span><div class="budget-list-actions"><button class="btn btn-secondary btn-small" onclick="loadBudgetForEditing('${budget.name}')">Edit</button><button class="btn btn-danger btn-small" onclick="confirmDeleteBudget('${budget.name}')">Delete</button></div>`; savedBudgetsListDiv.appendChild(item); });
+         }
+        function loadBudgetForEditing(budgetName) { /* ... same logic ... */
+            const budget = getBudgetByName(budgetName); if (budget) { appState.income = budget.income; appState.valueNames = budget.valueNames || { v1: 'Value 1', v2: 'Value 2', v3: 'Value 3' }; appState.recommendedHybridStructure = budget.hybridStructure || null; appState.editingBudgetName = budget.name; incomeInput.value = appState.income; budgetNameInput.value = budget.name; /* Set name input */ appState.screensCompleted = { intro: true, questionnaire: true, recommendation: true, methods: true, builder: false, budgetList: true }; setupBuilderCategories(budget); navigateTo('builder'); setFeedback(builderFeedback, `Loaded "${budget.name}" for editing. Save changes when ready.`, 'info'); } else { setFeedback(budgetListFeedback, `Error: Could not load budget "${budgetName}".`, 'error'); }
+         }
+        function confirmDeleteBudget(budgetName) { /* ... same logic ... */ if (confirm(`Are you sure you want to permanently delete the budget named "${budgetName}"?`)) { deleteBudget(budgetName); } }
+        function handleSaveBudget() {
+             // Validate method selected and budget balanced
+             if (appState.builderMethod === 'none' || Object.keys(appState.builderAllocations).length === 0) { setFeedback(builderFeedback, "Please select a method and allocate funds.", "warning"); return; }
+             if (Math.abs(appState.income - Object.values(appState.builderAllocations).reduce((s, v) => s + v, 0)) >= 0.01) { setFeedback(builderFeedback, "Budget must be balanced before saving.", 'error'); return; }
+
+             // Get name from input field
+             let budgetName = budgetNameInput.value.trim();
+             if (!budgetName) {
+                 setFeedback(builderFeedback, "Please enter a name for this budget.", "warning");
+                 budgetNameInput.focus(); // Focus the input field
+                 return;
+             }
+
+             let isUpdate = !!appState.editingBudgetName; // Are we editing?
+             const budgets = loadBudgets();
+
+             // Check for name conflict ONLY if NOT editing OR if the name has changed during edit
+             if (!isUpdate || (isUpdate && budgetName.toLowerCase() !== appState.editingBudgetName.toLowerCase())) {
+                 if (budgets.some(b => b.name.toLowerCase() === budgetName.toLowerCase())) {
+                      if (!confirm(`A budget named "${budgetName}" already exists. Overwrite it?`)) {
+                          setFeedback(builderFeedback, "Save cancelled.", "info");
+                          return;
+                      }
+                      isUpdate = true; // Treat overwrite as an update
+                 } else {
+                     isUpdate = false; // It's definitely a new budget if name doesn't exist
+                 }
+             }
+
+
+             const budgetData = { income: appState.income, method: appState.builderMethod, hybridStructure: appState.builderMethod === 'hybrid' ? appState.recommendedHybridStructure : null, allocations: appState.builderAllocations, valueNames: appState.valueNames };
+             saveOrUpdateBudget(budgetName, budgetData);
+             appState.editingBudgetName = null; // Clear editing state
+             budgetNameInput.value = ''; // Clear name input after save
+             appState.screensCompleted.builder = true;
+             navigateTo('budgetList');
+             setFeedback(budgetListFeedback, `Budget "${budgetName}" ${isUpdate ? 'updated' : 'saved'} successfully!`, "success");
+             setTimeout(() => hideElement(budgetListFeedback), 3500);
+         }
+
+        // --- Get Method/Structure Name Helpers ---
+        function getMethodName(methodKey) { /* ... same names ... */ const names = { '503020': '50/30/20 Rule', 'zbb': 'Zero-Based Budget (ZBB)', 'valueBased': 'Value-Based Spending', 'conscious': 'Conscious Spending / PYF', 'envelope': 'Envelope System', 'hybrid': 'Hybrid Approach' }; return names[methodKey] || 'None Selected'; }
+        function getHybridStructureName(structureKey) { const names = { 'conscious-envelope': 'Conscious + Envelopes', '503020-zbb-wants': '50/30/20 + Detailed Wants' }; return names[structureKey] || 'Custom Hybrid'; }
+        function getCategoryLabel(key, method, valueNames) { /* ... same logic ... */ if (key.startsWith('hybrid_')) { return key.replace('hybrid_', '').replace(/[-_]/g, ' ').replace(/_\d+$/, '').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '); } if (method === 'hybrid' && appState.recommendedHybridStructure === 'conscious-envelope') { if (key === 'fixed') return 'Fixed Costs'; if (key === 'investments') return 'Investments (Automated)'; if (key === 'savings_goals') return 'Savings Goals (Automated)'; if (key === 'env_dining_social') return 'Envelope: Dining/Social'; if (key === 'env_hobbies_fun') return 'Envelope: Hobbies/Fun'; if (key === 'env_shopping_personal') return 'Envelope: Shopping/Personal'; } if (method === 'hybrid' && appState.recommendedHybridStructure === '503020-zbb-wants') { if (key === 'needs_lump') return 'Needs (~50%)'; if (key === 'savings_lump') return 'Savings/Debt (~20%)'; if (key === 'zbb_wants_dining') return 'Want: Dining Out'; if (key === 'zbb_wants_hobbies') return 'Want: Hobbies/Rec'; if (key === 'zbb_wants_subs') return 'Want: Subscriptions'; if (key === 'zbb_wants_shopping') return 'Want: Shopping (Non-essential)'; if (key === 'zbb_wants_other') return 'Want: Other/Misc'; } const stdLabels = { 'needs': 'Needs', 'wants': 'Wants', 'savings': 'Savings/Debt', 'housing': 'Housing', 'transport': 'Transportation', 'food': 'Food/Groceries', 'utilities': 'Utilities', 'insurance': 'Insurance', 'debt': 'Debt Payments', 'savings_goals': 'Savings', 'investing': 'Investing', 'personal': 'Personal/Fun', 'misc': 'Miscellaneous/Buffer', 'value1': `Value: ${valueNames.v1}`, 'value2': `Value: ${valueNames.v2}`, 'value3': `Value: ${valueNames.v3}`, 'essentials': 'Essential Needs', 'savings_debt': 'Other Savings/Debt', 'nonvalued': 'Non-Valued/Other', 'fixed': 'Fixed Costs', 'investments': 'Investments', 'guiltfree': 'Guilt-Free Spending', 'env_groceries': 'Envelope: Groceries', 'env_dining': 'Envelope: Dining Out', 'env_fun': 'Envelope: Entertainment', 'env_transport': 'Envelope: Transport', 'env_personal': 'Envelope: Personal Care', 'env_misc': 'Envelope: Misc/Cash', 'fixed_bills': 'Fixed Bills', 'savings_debt_non_env': 'Savings/Debt' }; return stdLabels[key] || key.replace(/_/g, ' ').split(' ').map(w=>w.charAt(0).toUpperCase()+w.slice(1)).join(' '); }
+
+
+        // --- Event Listeners Setup ---
+        function initializeApp() {
+            // Initial State Setup
+            navigateTo('budgetList'); // Start on the budget list page
+
+            // Event Listeners
+            createNewBudgetBtn.addEventListener('click', () => {
+                 Object.assign(appState, { income: 0.0, recommendations: [], recommendedHybridStructure: null, builderMethod: 'none', builderAllocations: {}, valueNames: { v1: 'Value 1', v2: 'Value 2', v3: 'Value 3' }, editingBudgetName: null, screensCompleted: { intro: false, questionnaire: false, recommendation: false, methods: false, builder: false, budgetList: true } });
+                 incomeInput.value = ''; guidanceForm.reset(); builderMethodSelect.value = 'none'; builderCategoriesDiv.innerHTML = '<p>Select a method...</p>'; hideElement(hybridAddArea); budgetNameInput.value = ''; // Clear name input
+                 [introWarning, questionnaireWarning, recommendationText, builderFeedback].forEach(hideElement);
+                 navigateTo('intro');
+            });
+
+            startQuestionnaireBtn.addEventListener('click', () => { const incomeValue = parseFloat(incomeInput.value); hideElement(introWarning); if (incomeValue && incomeValue > 0) { appState.income = incomeValue; appState.screensCompleted.intro = true; navigateTo('questionnaire'); } else { setFeedback(introWarning, "Please enter a valid monthly income (> 0).", 'error'); } });
+            guidanceForm.addEventListener('submit', (event) => {
+                event.preventDefault(); hideElement(questionnaireWarning);
+                const formData = new FormData(guidanceForm);
+                const goals = Array.from(guidanceForm.querySelectorAll('input[name="q2_goal"]:checked')).map(cb => cb.value);
+                const challenges = Array.from(guidanceForm.querySelectorAll('input[name="q6_challenge"]:checked')).map(cb => cb.value);
+                const answers = { q1_tracking: formData.get('q1_tracking'), q2_goals: goals, q3_time: formData.get('q3_time'), q4_style: formData.get('q4_style'), q5_income: formData.get('q5_income'), q6_challenges: challenges };
+                 if (goals.length === 0 || challenges.length === 0 || !answers.q1_tracking || !answers.q3_time || !answers.q4_style || !answers.q5_income) { setFeedback(questionnaireWarning, "Please answer all questions (select at least one for #2 & #6).", 'error'); return; }
+                const recommendations = calculateBudgetRecommendation(answers);
+                appState.screensCompleted.questionnaire = true;
+                displayRecommendation(recommendations);
+            });
+            gotoMethodsBtn.addEventListener('click', () => { appState.screensCompleted.recommendation = true; populateMethodDetails(); navigateTo('methods'); });
+            gotoBuilderBtn.addEventListener('click', () => { appState.screensCompleted.recommendation = true; appState.editingBudgetName = null; budgetNameInput.value = ''; builderMethodSelect.value = appState.recommendations[0]; setupBuilderCategories(); navigateTo('builder'); });
+            builderFromMethodsBtn.addEventListener('click', () => { appState.screensCompleted.methods = true; appState.editingBudgetName = null; budgetNameInput.value = ''; builderMethodSelect.value = appState.recommendations[0]; setupBuilderCategories(); navigateTo('builder'); });
+            builderMethodSelect.addEventListener('change', () => { appState.editingBudgetName = null; budgetNameInput.value = ''; setupBuilderCategories(); }); // Clear name/editing state on method change
+            addHybridCatBtn.addEventListener('click', handleAddHybridCategory);
+            saveBudgetBtn.addEventListener('click', handleSaveBudget);
+            clearAllBudgetsBtn.addEventListener('click', () => { if (confirm("Are you sure you want to delete ALL saved budgets? This cannot be undone.")) { saveBudgets([]); renderBudgetList(); setFeedback(budgetListFeedback, "All saved budgets deleted.", "success"); setTimeout(() => hideElement(budgetListFeedback), 3000); } });
+        }
+
+        // --- Run Initializer ---
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+    </script>
+
+</body>
+</html>
